@@ -91,8 +91,11 @@ func (p *payload) MarshalJSON() ([]byte, error) {
 }
 
 func (p *payload) makeSession() *sessionJSON {
+	if sessionTracker == nil {
+		return nil
+	}
 	session := sessionTracker.GetSession(p.Ctx)
-	if p.Ctx == nil {
+	if session == nil {
 		return nil
 	}
 	handled, unhandled := 1, 0

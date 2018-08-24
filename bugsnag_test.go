@@ -90,7 +90,7 @@ func TestNotify(t *testing.T) {
 	event := json.Get("events").GetIndex(0)
 
 	for k, value := range map[string]string{
-		"payloadVersion":                "2",
+		"payloadVersion":                "4.0",
 		"severity":                      "warning",
 		"context":                       "testing",
 		"groupingHash":                  "lol",
@@ -171,7 +171,7 @@ func TestHandler(t *testing.T) {
 	event := json.Get("events").GetIndex(0)
 
 	for k, value := range map[string]string{
-		"payloadVersion":              "2",
+		"payloadVersion":              "4.0",
 		"severity":                    "info",
 		"user.id":                     "127.0.0.1",
 		"metaData.request.url":        "http://" + l.Addr().String() + "/ok?foo=bar",

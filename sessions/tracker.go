@@ -52,7 +52,8 @@ func (s *sessionTracker) GetSession(ctx context.Context) *Session {
 	if ctx == nil {
 		return nil
 	}
-	return ctx.Value(contextSessionKey).(*Session)
+	session, _ := ctx.Value(contextSessionKey).(*Session)
+	return session
 }
 
 func (s *sessionTracker) StartSession(ctx context.Context) context.Context {
