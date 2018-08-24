@@ -119,7 +119,7 @@ func Handler(h http.Handler, rawData ...interface{}) http.Handler {
 			ctx := StartSession(r.Context())
 			request = r.WithContext(ctx)
 		}
-		defer notifier.AutoNotify(request)
+		defer notifier.AutoNotify(request, request.Context())
 		h.ServeHTTP(w, request)
 	})
 }
@@ -140,7 +140,7 @@ func HandlerFunc(h http.HandlerFunc, rawData ...interface{}) http.HandlerFunc {
 			ctx := StartSession(r.Context())
 			request = r.WithContext(ctx)
 		}
-		defer notifier.AutoNotify(request)
+		defer notifier.AutoNotify(request, request.Context())
 		h(w, request)
 	}
 }

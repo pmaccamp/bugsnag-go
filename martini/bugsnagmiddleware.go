@@ -70,7 +70,7 @@ func AutoNotify(rawData ...interface{}) martini.Handler {
 
 		// create a notifier that has the current request bound to it
 		notifier := bugsnag.New(append(rawData, request)...)
-		defer notifier.AutoNotify(request)
+		defer notifier.AutoNotify(request, request.Context())
 		c.Map(notifier)
 		c.Next()
 	}

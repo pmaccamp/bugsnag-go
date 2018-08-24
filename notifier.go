@@ -42,6 +42,7 @@ func (notifier *Notifier) Notify(rawData ...interface{}) (e error) {
 // will be sent to Bugsnag after being converted to JSON. e.g.
 // bugsnag.SeverityError,  bugsnag.Context, or bugsnag.MetaData.
 func (notifier *Notifier) NotifySync(rawData ...interface{}) (e error) {
+	startSessionTracking()
 	event, config := newEvent(rawData, notifier)
 
 	// Never block, start throwing away errors if we have too many.

@@ -36,6 +36,6 @@ func (h *handler) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.H
 	}
 
 	notifier := bugsnag.New(append(h.rawData, request)...)
-	defer notifier.AutoNotify(request)
+	defer notifier.AutoNotify(request, request.Context())
 	next(rw, request)
 }

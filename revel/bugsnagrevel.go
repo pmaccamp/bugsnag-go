@@ -32,13 +32,14 @@ var errorHandlingState = bugsnag.HandledState{
 // bugsnag.endpoints, bugsnag.releasestage, bugsnag.apptype, bugsnag.appversion,
 // bugsnag.projectroot, bugsnag.projectpackages if needed.
 func Filter(c *revel.Controller, fc []revel.Filter) {
+	ctx := context.Background()
 	// Record a session if auto capture sessions is enabled
 	if bugsnag.Config.IsAutoCaptureSessions() {
-		ctx := bugsnag.StartSession(context.Background())
+		ctx = bugsnag.StartSession(ctx)
 		c.Args["context"] = ctx
 	}
 
-	defer bugsnag.AutoNotify(c, errorHandlingState)
+	defer bugsnag.AutoNotify(c, errorHandlingState, ctx)
 	fc[0](c, fc[1:])
 }
 

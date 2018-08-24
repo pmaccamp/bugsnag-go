@@ -9,12 +9,24 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/bitly/go-simplejson"
 )
 
+var postedJSON = make(chan []byte, 10)
+var testOnce sync.Once
+var testEndpoint string
+var testAPIKey = "166f5ad3590596f9aa8d601ea89af845"
+
 type _recurse struct {
 	Recurse *_recurse
+}
+
+func init() {
+	DefaultSessionPublishInterval = time.Millisecond * 10
+}
+
 func TestConfigure(t *testing.T) {
 	Configure(Configuration{
 		APIKey: "random-key",
@@ -27,46 +39,6 @@ func TestConfigure(t *testing.T) {
 	if New().Config.APIKey != "random-key" {
 		t.Errorf("Setting APIKey didn't work for new notifiers")
 	}
-}
-
-var postedJSON = make(chan []byte, 10)
-var testOnce sync.Once
-var testEndpoint string
-var testAPIKey = "166f5ad3590596f9aa8d601ea89af845"
-
-}
-
-var postedJSON = make(chan []byte, 10)
-var testOnce sync.Once
-var testEndpoint string
-var testAPIKey = "166f5ad3590596f9aa8d601ea89af845"
-
-func startTestServer() {
-	testOnce.Do(func() {
-		mux := http.NewServeMux()
-		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-			body, err := ioutil.ReadAll(r.Body)
-			if err != nil {
-				panic(err)
-			}
-			postedJSON <- body
-		})
-
-		l, err := net.Listen("tcp", "127.0.0.1:0")
-		if err != nil {
-			panic(err)
-		}
-		testEndpoint = "http://" + l.Addr().String() + "/"
-		Configure(Configuration{
-			Endpoints: Endpoints{Notify: testEndpoint, Sessions: testEndpoint},
-		})
-
-		go http.Serve(l, mux)
-	})
-}
-
-type _recurse struct {
-	Recurse *_recurse
 }
 
 func TestNotify(t *testing.T) {
@@ -170,7 +142,6 @@ func TestNotify(t *testing.T) {
 
 func TestHandler(t *testing.T) {
 	startTestServer()
-	DefaultSessionPublishInterval = time.Millisecond * 10
 	Configure(Configuration{AutoCaptureSessions: false})
 
 	l, err := runCrashyServer(Configuration{
@@ -261,7 +232,6 @@ func TestHandler(t *testing.T) {
 
 func TestHandlerWithSessions(t *testing.T) {
 	startTestServer()
-	DefaultSessionPublishInterval = time.Millisecond * 10
 	Configure(Configuration{AutoCaptureSessions: true})
 
 	l, err := runCrashyServer(Configuration{
@@ -297,7 +267,7 @@ func TestHandlerWithSessions(t *testing.T) {
 
 	// TODO : Add test to check session ID in event
 	for k, value := range map[string]string{
-		"payloadVersion":              "2",
+		"payloadVersion":              "4.0",
 		"severity":                    "info",
 		"user.id":                     "127.0.0.1",
 		"metaData.request.url":        "http://" + l.Addr().String() + "/ok?foo=bar",
@@ -307,6 +277,10 @@ func TestHandlerWithSessions(t *testing.T) {
 		if event.GetPath(key...).MustString() != value {
 			t.Errorf("Wrong %v: %v != %v", key, event.GetPath(key...).MustString(), value)
 		}
+	}
+
+	if event.GetPath("session", "events", "handled").MustInt() != 1 {
+		t.Errorf("Wrong %v: %v != %v", "session.events.handled", event.GetPath("session", "events", "handled").MustInt(), 1)
 	}
 
 	for k, value := range map[string]string{
@@ -436,156 +410,6 @@ func TestRecover(t *testing.T) {
 	assertSeverityReasonEqual(t, json, "warning", "handledPanic", false)
 }
 
-func handleGet(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Handling GET")
-}
-
-var createAccount = handleGet
-
-type _job struct {
-	Name    string
-	Process func()
-}
-
-func ExampleAutoNotify() {
-	f := func(w http.ResponseWriter, request *http.Request) {
-		defer AutoNotify(request, Context{"createAccount"})
-
-		createAccount(w, request)
-	}
-	var w http.ResponseWriter
-	var request *http.Request
-	f(w, request)
-	// Output:
-	// Handling GET
-}
-
-func ExampleRecover() {
-	job := _job{
-		Name: "Example",
-		Process: func() {
-			fmt.Println("About to panic")
-			panic("Oh noes")
-		},
-	}
-
-	func() {
-		defer Recover(Configuration{APIKey: testAPIKey})
-		job.Process()
-	}()
-	fmt.Println("Panic recovered")
-	// Output:
-	// About to panic
-	// Panic recovered
-}
-
-func ExampleConfigure() {
-	Configure(Configuration{
-		APIKey: "YOUR_API_KEY_HERE",
-
-		ReleaseStage: "production",
-
-		// See Configuration{} for other fields
-	})
-}
-
-func ExampleHandler() {
-	// Set up your http handlers as usual
-	http.HandleFunc("/", handleGet)
-
-	// use bugsnag.Handler(nil) to wrap the default http handlers
-	// so that Bugsnag is automatically notified about panics.
-	http.ListenAndServe(":1234", Handler(nil))
-}
-
-func ExampleHandler_customServer() {
-	// If you're using a custom server, set the handlers explicitly.
-	http.HandleFunc("/", handleGet)
-
-	srv := http.Server{
-		Addr:        ":1234",
-		ReadTimeout: 10 * time.Second,
-		// use bugsnag.Handler(nil) to wrap the default http handlers
-		// so that Bugsnag is automatically notified about panics.
-		Handler: Handler(nil),
-	}
-	srv.ListenAndServe()
-}
-
-func ExampleHandler_customHandlers() {
-	// If you're using custom handlers, wrap the handlers explicitly.
-	handler := http.NewServeMux()
-	http.HandleFunc("/", handleGet)
-	// use bugsnag.Handler(handler) to wrap the handlers so that Bugsnag is
-	// automatically notified about panics
-	http.ListenAndServe(":1234", Handler(handler))
-}
-
-func ExampleNotify() {
-	_, err := net.Listen("tcp", ":80")
-
-	if err != nil {
-		Notify(err)
-	}
-}
-
-func ExampleNotify_details() {
-	_, err := net.Listen("tcp", ":80")
-	userID := "123456789"
-
-	if err != nil {
-		Notify(err,
-			// show as low-severity
-			SeverityInfo,
-			// set the context
-			Context{"createlistener"},
-			// pass the user id in to count users affected.
-			User{Id: userID},
-			// custom meta-data tab
-			MetaData{
-				"Listen": {
-					"Protocol": "tcp",
-					"Port":     "80",
-				},
-			},
-		)
-	}
-
-}
-
-type Job struct {
-	Retry     bool
-	UserId    string
-	UserEmail string
-	Name      string
-	Params    map[string]string
-}
-
-func ExampleOnBeforeNotify() {
-	OnBeforeNotify(func(event *Event, config *Configuration) error {
-
-		// Search all the RawData for any *Job pointers that we're passed in
-		// to bugsnag.Notify() and friends.
-		for _, datum := range event.RawData {
-			if job, ok := datum.(*Job); ok {
-				// don't notify bugsnag about errors in retries
-				if job.Retry {
-					return fmt.Errorf("bugsnag middleware: not notifying about job retry")
-				}
-
-				// add the job as a tab on Bugsnag.com
-				event.MetaData.AddStruct("Job", job)
-
-				// set the user correctly
-				event.User = &User{Id: job.UserId, Email: job.UserEmail}
-			}
-		}
-
-		// continue notifying as normal
-		return nil
-	})
-}
-
 func TestSeverityReasonNotifyErr(t *testing.T) {
 	startTestServer()
 
@@ -684,6 +508,9 @@ func startTestServer() {
 			panic(err)
 		}
 		testEndpoint = "http://" + l.Addr().String() + "/"
+		Configure(Configuration{
+			Endpoints: Endpoints{Notify: testEndpoint, Sessions: testEndpoint},
+		})
 
 		go http.Serve(l, mux)
 	})
