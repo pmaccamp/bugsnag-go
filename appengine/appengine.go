@@ -1,82 +1,96 @@
-// +build appengine
-
-package bugsnag
+package bugsnagappengine
 
 import (
 	"fmt"
-	"golang.org/x/net/context"
-	"google.golang.org/appengine"
-	"google.golang.org/appengine/urlfetch"
-	"google.golang.org/appengine/user"
 	"log"
 	"net/http"
+
+	"github.com/bugsnag/bugsnag-go"
+	"golang.org/x/net/context"
+	"google.golang.org/appengine"
+	aelog "google.golang.org/appengine/log"
+	"google.golang.org/appengine/urlfetch"
+	"google.golang.org/appengine/user"
 )
 
-func defaultPanicHandler() {}
-
 func init() {
-	OnBeforeNotify(appengineMiddleware)
+	bugsnag.OnBeforeNotify(appengineMiddleware)
 }
 
-func appengineMiddleware(event *Event, config *Configuration) (err error) {
-	var c context.Context
-
-	for _, datum := range event.RawData {
-		if r, ok := datum.(*http.Request); ok {
-			c = appengine.NewContext(r)
-			break
-		} else if context, ok := datum.(context.Context); ok {
-			c = context
-			break
-		}
+func appengineMiddleware(event *bugsnag.Event, config *bugsnag.Configuration) (err error) {
+	ctx, err := findContext(event)
+	if err != nil {
+		return err
 	}
 
-	if c == nil {
-		return fmt.Errorf("No appengine context given")
-	}
-
-	// You can only use the builtin http library if you pay for appengine,
+	// You can only use the builtin HTTP library if you pay for appengine,
 	// so we use the appengine urlfetch service instead.
-	config.Transport = &urlfetch.Transport{
-		Context: c,
-	}
+	config.Transport = &urlfetch.Transport{Context: ctx, AllowInvalidServerCertificate: false}
+	config.Logger = findLogger(ctx, config.Logger)
+	config.ReleaseStage = findReleaseStage(config.ReleaseStage)
 
-	// Anything written to stderr/stdout is discarded, so lets log to the request.
-
-	if configuredLogger, ok := config.Logger.(*log.Logger); ok {
-		config.Logger = log.New(appengineWriter{c}, configuredLogger.Prefix(), configuredLogger.Flags())
-	} else {
-		config.Logger = log.New(appengineWriter{c}, log.Prefix(), log.Flags())
-	}
-
-	// Set the releaseStage appropriately
-	if config.ReleaseStage == "" {
-		if appengine.IsDevAppServer() {
-			config.ReleaseStage = "development"
-		} else {
-			config.ReleaseStage = "production"
-		}
-	}
-
-	if event.User == nil {
-		u := user.Current(c)
-		if u != nil {
-			event.User = &User{
-				Id:    u.ID,
-				Email: u.Email,
-			}
-		}
-	}
+	event.User = findUser(ctx, event.User)
 
 	return nil
 }
 
-// Convert an appengine.Context into an io.Writer so we can create a log.Logger.
-type appengineWriter struct {
-	context.Context
+type logger interface {
+	Printf(format string, v ...interface{})
 }
 
-func (c appengineWriter) Write(b []byte) (int, error) {
-	c.Warningf(string(b))
+func findUser(ctx context.Context, bUser *bugsnag.User) *bugsnag.User {
+	if u := user.Current(ctx); u != nil && bUser != nil {
+		return &bugsnag.User{Id: u.ID, Email: u.Email}
+	}
+	return bUser
+}
+
+func findLogger(ctx context.Context, l logger) logger {
+	if configuredLogger, ok := l.(*log.Logger); ok {
+		return log.New(appengineWriter{ctx}, configuredLogger.Prefix(), configuredLogger.Flags())
+	}
+	return log.New(appengineWriter{ctx}, log.Prefix(), log.Flags())
+}
+
+func findReleaseStage(rs string) string {
+	if rs != "" {
+		return rs
+	}
+
+	if appengine.IsDevAppServer() {
+		return "development"
+	}
+	return "production"
+
+}
+
+func findContext(event *bugsnag.Event) (context.Context, error) {
+	var ctx context.Context
+
+	for _, datum := range event.RawData {
+		if r, ok := datum.(*http.Request); ok {
+			ctx = appengine.NewContext(r)
+			break
+		} else if context, ok := datum.(context.Context); ok {
+			ctx = context
+			break
+		}
+	}
+
+	var err error
+	if ctx == nil {
+		err = fmt.Errorf("No appengine context given")
+	}
+	return ctx, err
+
+}
+
+// Create a custom writer so we can set up an internal logger for Bugsnag
+type appengineWriter struct {
+	ctx context.Context
+}
+
+func (w appengineWriter) Write(b []byte) (int, error) {
+	aelog.Errorf(w.ctx, string(b))
 	return len(b), nil
 }
