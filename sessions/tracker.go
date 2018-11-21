@@ -3,10 +3,7 @@ package sessions
 import (
 	"context"
 	"net/http"
-	"os"
-	"os/signal"
 	"sync"
-	"syscall"
 	"time"
 )
 
@@ -91,7 +88,7 @@ func (s *sessionTracker) processSessions() {
 		case <-tic:
 			s.publishCollectedSessions()
 		case sig := <-shutdown:
-			s.flushSessionsAndRepeatSignal(shutdown, sig.(syscall.Signal))
+			s.flushSessionsAndRepeatSignal(shutdown, sig)
 		}
 	}
 }
@@ -119,20 +116,6 @@ func (s *sessionTracker) publishCollectedSessions() {
 	}
 }
 
-func (s *sessionTracker) flushSessionsAndRepeatSignal(shutdown chan<- os.Signal, sig syscall.Signal) {
-	s.sessionsMutex.Lock()
-	defer s.sessionsMutex.Unlock()
-
-	signal.Stop(shutdown)
-	if len(s.sessions) > 0 {
-		err := s.publisher.publish(s.sessions)
-		if err != nil {
-			s.config.logf("%v", err)
-		}
-	}
-	syscall.Kill(syscall.Getpid(), sig)
-}
-
 func (s *sessionTracker) FlushSessions() {
 	s.sessionsMutex.Lock()
 	defer s.sessionsMutex.Unlock()
@@ -144,10 +127,4 @@ func (s *sessionTracker) FlushSessions() {
 			s.config.logf("%v", err)
 		}
 	}
-}
-
-func shutdownSignals() chan os.Signal {
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, syscall.SIGTERM, syscall.SIGINT)
-	return c
 }
