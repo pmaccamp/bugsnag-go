@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/bitly/go-simplejson"
-	"github.com/bugsnag/bugsnag-go/sessions"
+	"github.com/pmaccamp/bugsnag-go/sessions"
 	"github.com/kardianos/osext"
 )
 

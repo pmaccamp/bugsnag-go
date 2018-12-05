@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/bugsnag/bugsnag-go/errors"
-	"github.com/bugsnag/bugsnag-go/sessions"
+	"github.com/pmaccamp/bugsnag-go/sessions"
 )
 
 const expSmall = `{"apiKey":"","events":[{"app":{"releaseStage":""},"device":{},"exceptions":[{"errorClass":"","message":"","stacktrace":null}],"metaData":{},"payloadVersion":"4","severity":"","unhandled":false}],"notifier":{"name":"Bugsnag Go","url":"https://github.com/bugsnag/bugsnag-go","version":"1.4.0"}}`

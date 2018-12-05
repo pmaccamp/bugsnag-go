@@ -13,7 +13,7 @@ import (
 
 	"github.com/bugsnag/bugsnag-go/device"
 	"github.com/bugsnag/bugsnag-go/errors"
-	"github.com/bugsnag/bugsnag-go/sessions"
+	"github.com/pmaccamp/bugsnag-go/sessions"
 
 	// Fixes a bug with SHA-384 intermediate certs on some platforms.
 	// - https://github.com/bugsnag/bugsnag-go/issues/9

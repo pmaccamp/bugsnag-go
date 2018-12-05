@@ -4,7 +4,7 @@ package bugsnag
 
 import (
 	"github.com/bugsnag/bugsnag-go/errors"
-	"github.com/bugsnag/bugsnag-go/sessions"
+	"github.com/pmaccamp/bugsnag-go/sessions"
 	"github.com/bugsnag/panicwrap"
 )
 

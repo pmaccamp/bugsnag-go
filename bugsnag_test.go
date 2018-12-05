@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/bitly/go-simplejson"
-	"github.com/bugsnag/bugsnag-go/sessions"
+	"github.com/pmaccamp/bugsnag-go/sessions"
 )
 
 // The line numbers of this method are used in tests.

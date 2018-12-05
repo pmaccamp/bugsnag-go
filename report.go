@@ -1,7 +1,7 @@
 package bugsnag
 
 import (
-	"github.com/bugsnag/bugsnag-go/sessions"
+	"github.com/pmaccamp/bugsnag-go/sessions"
 	uuid "github.com/gofrs/uuid"
 )
 

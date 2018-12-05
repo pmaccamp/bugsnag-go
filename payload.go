@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/bugsnag/bugsnag-go/headers"
-	"github.com/bugsnag/bugsnag-go/sessions"
+	"github.com/pmaccamp/bugsnag-go/sessions"
 )
 
 const notifyPayloadVersion = "4"
